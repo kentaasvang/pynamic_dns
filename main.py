@@ -1,3 +1,4 @@
+import time
 import requests
 import settings
 
@@ -23,4 +24,5 @@ while True:
             else:
                 print("IP for", dns_record["name"], "is already correct")
 
-    break
+    # Sleep for 2 hours
+    time.sleep(1*60*60*2)
