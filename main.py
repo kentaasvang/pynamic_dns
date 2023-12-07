@@ -16,6 +16,7 @@ while True:
     print(current_ip)
 
     dns_records = cf_client.get_dns_records()
+    print(dns_records)
     for dns_record in dns_records["result"]:
         if dns_record["name"] in settings.domains:
             if dns_record["content"] != current_ip:
