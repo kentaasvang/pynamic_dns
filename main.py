@@ -24,5 +24,5 @@ while True:
             else:
                 print("IP for", dns_record["name"], "is already correct")
 
-    # Sleep for 2 hours
-    time.sleep(1*60*60*2)
+    # Sleep for 6 hours
+    time.sleep(1*60*60*6)
