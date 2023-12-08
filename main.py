@@ -1,3 +1,4 @@
+import os
 import time
 import requests
 import settings
@@ -5,8 +6,11 @@ import settings
 from cf_client import CFClient
 
 def get_current_server_ip():
-    result = requests.get("https://ifconfig.me")
-    return result.text
+    result = requests.get("https://ifconfig.me").text
+    if ":" in result:
+        result = os.popen("curl -4 ifconfig.me").read()
+
+    return result
 
 cf_client = CFClient(settings.AUTH_KEY, settings.ZONE_ID)
 
