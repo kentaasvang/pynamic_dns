@@ -11,7 +11,7 @@ from logging import (
 from datetime import datetime
 
 # WORKER 
-SLEEP_IN_SECONDS=5
+SLEEP_IN_SECONDS=1*60*30
 
 
 # CLOUDFLARE
