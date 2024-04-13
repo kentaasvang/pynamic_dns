@@ -27,7 +27,7 @@ class CloudflareDNSRecord(BaseModel):
 class CloudflareResponse(BaseModel):
     errors: List[Any]
     messages: List[Any]
-    result: List[CloudflareDNSRecord] | CloudflareDNSRecord
+    result: Union[List[CloudflareDNSRecord], CloudflareDNSRecord]
     result_info: Optional[Dict[str, int]] = None
     success: bool
 
@@ -47,7 +47,7 @@ class CFClient:
         self.auth_key = auth_key
         self.zone_id = zone_id
 
-    def get_dns_records(self) -> List[CloudflareDNSRecord] | None:
+    def get_dns_records(self) -> Union[List[CloudflareDNSRecord], None]:
         url = self.BASE_URL + "zones/" + self.zone_id + "/dns_records"
         params = {"type": "A"}
         response = requests.get(url, params=params, headers={"Authorization": "Bearer " + self.auth_key})
