@@ -6,7 +6,7 @@ from datetime import datetime
 from logger import logger
 
 from pydantic import BaseModel
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 
 class CloudflareDNSRecord(BaseModel):
     content: str
