@@ -1,12 +1,11 @@
-import pprint
 import requests
-import settings
 
 from datetime import datetime
 from logger import logger
 
 from pydantic import BaseModel
 from typing import Dict, List, Any, Optional, Union
+
 
 class CloudflareDNSRecord(BaseModel):
     content: str
@@ -24,6 +23,7 @@ class CloudflareDNSRecord(BaseModel):
     zone_id: str
     zone_name: str
 
+
 class CloudflareResponse(BaseModel):
     errors: List[Any]
     messages: List[Any]
@@ -31,12 +31,14 @@ class CloudflareResponse(BaseModel):
     result_info: Optional[Dict[str, int]] = None
     success: bool
 
+
 class UpdateDNSRecord(BaseModel):
     content: str
     name: str
     type: str
     comment: str
     proxied: bool
+
 
 class CFClient:
 
