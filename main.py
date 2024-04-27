@@ -1,14 +1,12 @@
 #!./venv/bin/python3.12
 import os
-import sys
 import time
-import requests
 import settings
-from datetime import datetime
 from logger import logger
-from pprint import pprint
 
 from cf_client import CFClient, CloudflareDNSRecord
+
+from typing import List
 
 def main():
     while True:
@@ -21,25 +19,27 @@ def main():
         cf_client = CFClient(settings.AUTH_KEY, settings.ZONE_ID)
 
         # get current ip from DNS
-        dns_records: List[CloudflareDNSRecord] = cf_client.get_dns_records()
+        dns_records: List[CloudflareDNSRecord] | None = cf_client.get_dns_records()
 
-        for dns_record in dns_records:
-            logger.info(f"Checking IP on '{dns_record.name}'")
+        if dns_records != None:
 
-            if dns_record.name not in settings.domains:
-                logger.info(f"Skipping record: '{dns_record.name}'")
-                continue
+            for dns_record in dns_records:
+                logger.info(f"Checking IP on '{dns_record.name}'")
 
-            if dns_record.content != current_server_ip:
-                logger.info(f"Updating IP on '{dns_record.name}' to '{current_server_ip}'")
-                result = cf_client.update_ip_address(dns_record, current_server_ip)
+                if dns_record.name not in settings.domains:
+                    logger.info(f"Skipping record: '{dns_record.name}'")
+                    continue
 
-                if result:
-                    logger.info(f"Successfully updated '{dns_record.name}'")
-                else:
-                    logger.warning(f"Something wen't wrong updating dns_record '{dns_record.name}'")
+                if dns_record.content != current_server_ip:
+                    logger.info(f"Updating IP on '{dns_record.name}' to '{current_server_ip}'")
+                    result = cf_client.update_ip_address(dns_record, current_server_ip)
 
-            logger.info(f"Finished checking '{dns_record.name}'")
+                    if result:
+                        logger.info(f"Successfully updated '{dns_record.name}'")
+                    else:
+                        logger.warning(f"Something wen't wrong updating dns_record '{dns_record.name}'")
+
+                logger.info(f"Finished checking '{dns_record.name}'")
 
         logger.info(f"Sleeping for {settings.SLEEP_IN_SECONDS}seconds")
         time.sleep(settings.SLEEP_IN_SECONDS)
