@@ -27,7 +27,7 @@ class CloudflareDNSRecord(BaseModel):
 class CloudflareResponse(BaseModel):
     errors: List[Any]
     messages: List[Any]
-    result: Union[List[CloudflareDNSRecord], CloudflareDNSRecord]
+    result: Union[List[CloudflareDNSRecord], CloudflareDNSRecord, None]
     result_info: Optional[Dict[str, int]] = None
     success: bool
 
@@ -49,13 +49,21 @@ class CFClient:
         self.auth_key = auth_key
         self.zone_id = zone_id
 
-    def get_dns_records(self) -> Union[List[CloudflareDNSRecord], None]:
+    def get_dns_records(self) -> Union[List[CloudflareDNSRecord], CloudflareDNSRecord, None]:
         url = self.BASE_URL + "zones/" + self.zone_id + "/dns_records"
         params = {"type": "A"}
         response = requests.get(url, params=params, headers={"Authorization": "Bearer " + self.auth_key})
+
+        logger.debug(f"response status code from request: {response.status_code}")
+        if not response.ok:
+            logger.exception(f"Invalid response code: {response.status_code}")
+            return None
+
         cf_response = CloudflareResponse(**response.json())
 
-        if response.status_code == requests.codes.ok and cf_response.success:
+        logger.debug(f"Query request success from Cloudflare: {cf_response.success}")
+
+        if cf_response.success:
             return cf_response.result
 
         return None
