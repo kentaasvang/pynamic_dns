@@ -1,6 +1,7 @@
 #!./venv/bin/python3.12
 import os
 import time
+import warnings
 import settings
 from logger import logger
 
@@ -47,6 +48,11 @@ def main():
     
 
 def get_current_server_ip():
+    warnings.warn(
+            f"get_current_server_ip is deprecated and will be replaced by whatsmyip.get_ip_addresses() in the future.",
+            DeprecationWarning,
+            stacklevel=2
+    )
     result = os.popen("curl -4 ifconfig.me").read()
     return result
 
