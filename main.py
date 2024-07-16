@@ -5,7 +5,6 @@ import settings
 from logger import logger
 
 from cf_client import CFClient, CloudflareDNSRecord
-from whatsmyip.whatsmyip import get_ip_addresses, IPAddresses
 
 from typing import List
 
@@ -15,8 +14,6 @@ def main():
 
         # get current public server ip
         current_server_ip = get_current_server_ip()
-
-        ip_addresses: IPAddresses = get_ip_addresses()
 
         logger.debug(f"current_server_ip: '{current_server_ip}'")
 
@@ -49,9 +46,9 @@ def main():
         time.sleep(settings.SLEEP_IN_SECONDS)
     
 
-#def get_current_server_ip():
-#    result = os.popen("curl -4 ifconfig.me").read()
-#    return result
+def get_current_server_ip():
+    result = os.popen("curl -4 ifconfig.me").read()
+    return result
 
 
 if __name__ == "__main__":
