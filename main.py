@@ -2,38 +2,62 @@
 import os
 import time
 import settings
+import logging
 from logger import logger
-from storage import Storage, Domain, save
+from storage import Storage, DNSRecord, save, read
 
-from cf_client import CFClient, CloudflareDNSRecord
+from cf_client import CloudflareAPIClient, CloudflareDNSRecord
 
 from typing import List
 
 def main():
 
     logger.info("Starting pynamic_dns")
-
-    # get current public server ip
-    current_server_ip = get_current_server_ip()
-    logger.debug(f"current_server_ip: '{current_server_ip}'")
-
-    cf_client = CFClient(settings.AUTH_KEY, settings.ZONE_ID)
+    cf_client = CloudflareAPIClient(settings.AUTH_KEY, settings.ZONE_ID)
 
     # get current ip from DNS
-    # TODO: check db first
-    dns_records: List[CloudflareDNSRecord] | CloudflareDNSRecord | None = cf_client.get_dns_records()
+    dns_records: List[CloudflareDNSRecord] = cf_client.get_dns_records()
+    logger.debug(f"got '{len(dns_records)}' DNS records from client")
     
-    if dns_records != None:
-        domains = []
-        if type(dns_records) == List[CloudflareDNSRecord]:
+    if len(dns_records) > 0:
+        storage: Storage = read()
+
+        if len(storage.dns_records) == 0:
+           logging.debug("Saving initial storage data")
+           for dns_record in dns_records:
+               record = DNSRecord(
+                       id=dns_record.id,
+                       name=dns_record.name, 
+                       domain=dns_record.zone_name, 
+                       ip_address=dns_record.content, 
+                       type=dns_record.type, 
+                       proxied=dns_record.proxied
+                )
+
+               storage.dns_records.append(record)
+
+           save(storage)
+
+
+        TODO: since we need to access date frequiently we should use dicts for passing date, with record id and domain and as keys
+
+        else:
             for dns_record in dns_records:
-                domains.append(Domain(dns_record.name, False, dns_record.content, dns_record.type, dns_record.proxied))
+                for stored_record in storage.dns_records:
+                    if stored_record.id == dns_record.id:
+                        updated_record = DNSRecord(
+                            id=dns_record.id,
+                            name=dns_record.name, 
+                            domain=dns_record.zone_name, 
+                            ip_address=dns_record.content, 
+                            update_ip_address=stored_record.update_ip_address,
+                            type=dns_record.type, 
+                            proxied=dns_record.proxied
+                        )
 
-        elif type(dns_records) == CloudflareDNSRecord:
-            domains.append(Domain(dns_records.name, False, dns_records.content, dns_records.type, dns_records.proxied))
 
-        storage = Storage(domains = domains)
-        save(storage)
+
+
 
 """
         for dns_record in dns_records:
@@ -58,9 +82,16 @@ def main():
     time.sleep(settings.SLEEP_IN_SECONDS)
   """  
 
-def get_current_server_ip():
+def _get_current_server_ip() -> str:
     result = os.popen("curl -4 ifconfig.me").read()
     return result
+
+
+def _setup():
+    # setup project dir if not exists (/opt/pynamic_dns/)
+    # create storage.json if not exists
+    # create /opt/pynamic_dns/backups?
+    pass
 
 
 if __name__ == "__main__":
