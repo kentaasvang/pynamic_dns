@@ -4,7 +4,7 @@ import time
 import settings
 from pathlib import Path
 from logger import logger
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 from cf_client import CloudflareAPIClient
 
@@ -35,12 +35,6 @@ def main():
 class IfConfigResult(BaseModel):
     #model_config = ConfigDict(extra="ignore")
     ip_addr: str
-
-
-    #this is now working ad-hocly.
-    #need to clean up rest of code
-    #make sure we keep all values on Cloudflare as is, and only change ip
-    #write tests
 
 
 def _get_current_public_ip() -> IfConfigResult:
