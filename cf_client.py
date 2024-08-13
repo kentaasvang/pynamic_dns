@@ -34,9 +34,6 @@ class CloudflareResponse(BaseModel):
     success: bool
 
     
-# {'result': {'id': '3a0bec6d94588d4d46e13e9b36844aef', 'zone_id': '018dde8b571634e98935b75069c35547', 'zone_name': 'asvang-it.no', 'name': 'pynamic_dns.asvang-it.no', 'type': 'A', 'content': '123.123.123.123', 'proxiable': True, 'proxied': False, 'ttl': 1, 'meta': {'auto_added': False, 'managed_by_apps': False, 'managed_by_argo_tunnel': False}, 'comment': "Updated by pynamic_dns on '2024-08-12T22:31:13.151443'", 'tags': [], 'created_on': '2024-08-12T19:54:15.426113Z', 'modified_on': '2024-08-12T20:31:13.784478Z'}, 'success': True, 'errors': [], 'messages': []}
-
-
 class UpdateDNSRecord(BaseModel):
     content: str
     name: str
