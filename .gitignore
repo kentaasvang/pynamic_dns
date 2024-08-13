@@ -1,6 +1,5 @@
 venv/
 .env
 __pycache__/
-data/*
+data/public_ip_address
 logs/*
-storage.json
