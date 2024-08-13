@@ -2,97 +2,85 @@
 import os
 import time
 import settings
-import logging
+from pathlib import Path
 from logger import logger
-from storage import Storage, DNSRecord, save, read
+from pydantic import BaseModel, ConfigDict
 
-from cf_client import CloudflareAPIClient, CloudflareDNSRecord
+from cf_client import CloudflareAPIClient
 
-from typing import List
 
 def main():
 
-    logger.info("Starting pynamic_dns")
-    cf_client = CloudflareAPIClient(settings.AUTH_KEY, settings.ZONE_ID)
+    # get current public server ip
+    current_public_ip = _get_current_public_ip()
+    logger.debug(f"public ip is '{current_public_ip}'")
 
-    # get current ip from DNS
-    dns_records: List[CloudflareDNSRecord] = cf_client.get_dns_records()
-    logger.debug(f"got '{len(dns_records)}' DNS records from client")
-    
-    if len(dns_records) > 0:
-        storage: Storage = read()
+    # check if previous public ip is stored in storage
+    stored_ip = _get_stored_ip()
+    logger.debug(f"stored ip is '{stored_ip}'")
 
-        if len(storage.dns_records) == 0:
-           logging.debug("Saving initial storage data")
-           for dns_record in dns_records:
-               record = DNSRecord(
-                       id=dns_record.id,
-                       name=dns_record.name, 
-                       domain=dns_record.zone_name, 
-                       ip_address=dns_record.content, 
-                       type=dns_record.type, 
-                       proxied=dns_record.proxied
+    # if changed update dns record and update storage
+    if stored_ip != current_public_ip.ip_addr:
+        _store_ip(current_public_ip.ip_addr)
+
+        cloudflare_client = CloudflareAPIClient(
+                settings.API_TOKEN, 
+                settings.ZONE_ID, 
+                settings.DNS_ID
                 )
 
-               storage.dns_records.append(record)
+        cloudflare_client.update_ip_address(current_public_ip.ip_addr)
+    
 
-           save(storage)
-
-
-        TODO: since we need to access date frequiently we should use dicts for passing date, with record id and domain and as keys
-
-        else:
-            for dns_record in dns_records:
-                for stored_record in storage.dns_records:
-                    if stored_record.id == dns_record.id:
-                        updated_record = DNSRecord(
-                            id=dns_record.id,
-                            name=dns_record.name, 
-                            domain=dns_record.zone_name, 
-                            ip_address=dns_record.content, 
-                            update_ip_address=stored_record.update_ip_address,
-                            type=dns_record.type, 
-                            proxied=dns_record.proxied
-                        )
+class IfConfigResult(BaseModel):
+    #model_config = ConfigDict(extra="ignore")
+    ip_addr: str
 
 
+    #this is now working ad-hocly.
+    #need to clean up rest of code
+    #make sure we keep all values on Cloudflare as is, and only change ip
+    #write tests
 
 
+def _get_current_public_ip() -> IfConfigResult:
+    result_json = os.popen("curl -4 ifconfig.me/all.json").read()
 
-"""
-        for dns_record in dns_records:
-            logger.info(f"Checking IP on '{dns_record.name}'")
+    logger.debug(result_json)
 
-            if dns_record.name not in settings.domains:
-                logger.info(f"Skipping record: '{dns_record.name}'")
-                continue
+    try:
+        result: IfConfigResult = IfConfigResult.model_validate_json(result_json)
+    except ValueError as ve:
+        logger.error(f"Error in retrieving public ip, message: {ve}")
+        result = IfConfigResult(ip_addr="")
 
-            if dns_record.content != current_server_ip:
-                logger.info(f"Updating IP on '{dns_record.name}' to '{current_server_ip}'")
-                result = cf_client.update_ip_address(dns_record, current_server_ip)
-
-                if result:
-                    logger.info(f"Successfully updated '{dns_record.name}'")
-                else:
-                    logger.warning(f"Something wen't wrong updating dns_record '{dns_record.name}'")
-
-            logger.info(f"Finished checking '{dns_record.name}'")
-
-    logger.info(f"Sleeping for {settings.SLEEP_IN_SECONDS}seconds")
-    time.sleep(settings.SLEEP_IN_SECONDS)
-  """  
-
-def _get_current_server_ip() -> str:
-    result = os.popen("curl -4 ifconfig.me").read()
     return result
 
 
-def _setup():
-    # setup project dir if not exists (/opt/pynamic_dns/)
-    # create storage.json if not exists
-    # create /opt/pynamic_dns/backups?
-    pass
+def _get_stored_ip() -> str:
+    path: Path = Path(settings.STORAGE_PATH)
+
+    try:
+        public_ip_address = path.read_text() 
+    except FileNotFoundError:
+        logger.debug("no previous ip was stored")
+        return ""
+
+    return public_ip_address
+
+
+def _store_ip(ip: str):
+    logger.debug(f"storing ip: {ip}")
+    path = Path(settings.STORAGE_PATH)
+    path.touch(exist_ok=True)
+
+    with path.open("r+") as file:
+        file.truncate(0)
+
+    path.write_text(ip)
 
 
 if __name__ == "__main__":
-    main()
+    while True:
+        main()
+        time.sleep(settings.SLEEP_IN_SECONDS)

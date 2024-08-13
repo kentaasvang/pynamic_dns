@@ -10,30 +10,31 @@ from typing import Dict, List, Any, Optional, Union
 
 
 class CloudflareDNSRecord(BaseModel):
-    content: str
-    created_on: datetime 
     id: str
-    locked: bool
-    meta: Dict[str, bool]
-    modified_on: datetime 
-    name: str
-    proxiable: bool
-    proxied: bool
-    tags: List[Any]
-    ttl: int 
-    type: str
     zone_id: str
     zone_name: str
-
-    sync_ip_with_server: bool = False
+    name: str
+    type: str
+    content: str
+    proxiable: bool
+    proxied: bool
+    ttl: int 
+    meta: Dict[str, bool]
+    comment: str
+    tags: List[Any]
+    created_on: datetime 
+    modified_on: datetime 
 
 
 class CloudflareResponse(BaseModel):
     errors: List[Any]
     messages: List[Any]
-    result: Union[List[CloudflareDNSRecord], CloudflareDNSRecord, None]
+    result: CloudflareDNSRecord
     result_info: Optional[Dict[str, int]] = None
     success: bool
+
+    
+# {'result': {'id': '3a0bec6d94588d4d46e13e9b36844aef', 'zone_id': '018dde8b571634e98935b75069c35547', 'zone_name': 'asvang-it.no', 'name': 'pynamic_dns.asvang-it.no', 'type': 'A', 'content': '123.123.123.123', 'proxiable': True, 'proxied': False, 'ttl': 1, 'meta': {'auto_added': False, 'managed_by_apps': False, 'managed_by_argo_tunnel': False}, 'comment': "Updated by pynamic_dns on '2024-08-12T22:31:13.151443'", 'tags': [], 'created_on': '2024-08-12T19:54:15.426113Z', 'modified_on': '2024-08-12T20:31:13.784478Z'}, 'success': True, 'errors': [], 'messages': []}
 
 
 class UpdateDNSRecord(BaseModel):
@@ -41,97 +42,31 @@ class UpdateDNSRecord(BaseModel):
     name: str
     type: str
     comment: str
-    proxied: bool
 
-class CloudflareDomain(BaseModel):
-    id: str
-    name: str
-    status: str
-    paused: bool
-    type: str
-    development_mode: int
-    name_servers: List[str]
-    original_name_servers: List[str]
-    original_registrar: str
-    original_dnshost: Union[str, None]
-    modified_on: datetime
-    created_on: datetime
-    activated_on: datetime
-    meta: Dict[str, Any]
-    owner: Dict[str, Any]
-    account: Dict[str, Any]
-    tenant: Dict[str, Any]
-    tenant_unit: Dict[str, Any]
-    permissions: List[str]
-    plan: Dict[str, Any]
-    
 
 class CloudflareAPIClient:
 
-    BASE_URL = "https://api.cloudflare.com/client/v4/"
+    BASE_URL = "https://api.cloudflare.com/client/v4"
 
-    def __init__(self, auth_key, zone_id):
+    def __init__(self, auth_key, zone_id, dns_id):
         logger.debug("Initializing CFClient")
         self.auth_key = auth_key
         self.zone_id = zone_id
+        self.dns_id = dns_id
         self._client: CloudFlare.CloudFlare = CloudFlare.CloudFlare(
                 debug=settings.DEBUG,
-                token=settings.AUTH_KEY
+                token=settings.API_TOKEN
                 )
 
-    def _get_zones(self) -> List[CloudflareDomain]:
-        """
-        Zones in cloudflare are essentially the domains
-        with all the related settings
-        """
-        logger.debug(f"Getting zones/domains from Cloudflare")
-        try:
-            zones = self._client.zones.get()
-        except CloudFlare.exceptions.CloudFlareAPIError as e:
-            logger.error(f"api call from '{self._get_zones.__name__}' failed")
-            exit("/zones %d %s - api call failed" % (e, e))
-        except Exception as e:
-            logger.error(f"api call from '{self._get_zones.__name__}' failed")
-            exit("_get_zones - %s - api call failed" % (e))
-
-        return [CloudflareDomain(**zone) for zone in zones]
-
-    def _get_dns_records_from_domain_id(self, domain_id: str) -> List[CloudflareDNSRecord]:
-        dns_records: List[CloudflareDNSRecord] = [] 
-
-        try:
-            response = self._client.zones.dns_records.get(domain_id)
-            dns_records.extend([CloudflareDNSRecord(**record) for record in response])
-        except CloudFlare.exceptions.CloudFlareAPIError as e:
-            logger.error(f"api call from '{self._get_dns_records_from_domain_id.__name__}' failed")
-            exit("/zones %d %s - api call failed" % (e, e))
-        except Exception as e:
-            logger.error(f"api call from '{self._get_dns_records_from_domain_id.__name__}' failed")
-            exit("_get_dns_records_from_domain_id - %s - api call failed" % (e))
-
-        return dns_records
-
-    def get_dns_records(self):
-        logger.debug(f"Getting records from Cloudflare")
-        domains = self._get_zones()
-
-        dns_records: List[CloudflareDNSRecord] = []
-
-        for domain in domains:
-            logger.debug(f"getting DNS records from {domain.name}")
-            response = self._get_dns_records_from_domain_id(domain.id)
-            dns_records.extend(response)
-
-        return dns_records
-
-    def update_ip_address(self, dns_record: CloudflareDNSRecord, new_ip) -> bool:
-        url = self.BASE_URL + "zones/" + dns_record.zone_id + "/dns_records/" + dns_record.id
+    def update_ip_address(self, new_ip) -> bool:
+        logger.debug("updating ip address on record in cloudflare")
+        #url = self.BASE_URL + "zones/" + settings.ZONE_ID + "/dns_records/" + dns_record.id
+        url = f"{self.BASE_URL}/zones/{self.zone_id}/dns_records/{self.dns_id}"
 
         update_record = UpdateDNSRecord(
             content=new_ip, 
-            proxied=dns_record.proxied,
-            name=dns_record.name, 
-            type=dns_record.type, 
+            name="pynamic_dns",
+            type="A",
             comment=f"Updated by pynamic_dns on '{datetime.now().isoformat()}'"
             )
 
@@ -141,10 +76,23 @@ class CloudflareAPIClient:
             json=update_record.model_dump()
             )
 
+        logger.debug(response.json())
+
         cf_response = CloudflareResponse(**response.json())
 
         if response.status_code == requests.codes.ok and cf_response.success:
+            logger.debug("updating on cloudflare was successfull")
             return True
 
+        logger.debug("updating on cloudflare was unsuccessfull")
         return False
+
+
+if __name__ == "__main__":
+    import settings
+    cf_client = CloudflareAPIClient(settings.API_TOKEN, settings.ZONE_ID, settings.DNS_ID)
+    cf_client.update_ip_address("123.123.123.123")
+
+
+
 
